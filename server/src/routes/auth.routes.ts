@@ -1,5 +1,5 @@
 import express from 'express';
-import brcypt from 'bcrypt'  ;
+import bcrypt from 'bcrypt'  ;
 import jwt from 'jsonwebtoken';
 import User from "../models/user.model"
 
@@ -9,7 +9,7 @@ const router=express.Router();
 router.post('/register',async(req,res)=>{
     try{
         const {username,email,password,role}=req.body;
-        const hashedPassword= await brcypt.hash(password,10);
+        const hashedPassword= await bcrypt.hash(password,10);
 
         const user= new User({username,email,password:hashedPassword,role})
         await user.save()
@@ -23,17 +23,29 @@ router.post('/register',async(req,res)=>{
 
 
 // Login
-// router.post('/login',async(req,res)=>{
+router.post('/login',async(req,res)=>{
 
-//     try{
-//         const {email,password}=req.body;
-//         const user= await User.findOne({email})
+    try{
+        const {email,password}=req.body;
+        const user= await User.findOne({email})
 
-//     }
-//     catch(error){
+        if(!user || !(await bcrypt.compare(password,user.password)))
+        {
+            return res.status(401).json({message:"Invalid credentials"})
+        }
 
-//     }
+        const token=jwt.sign(
+            {userId:user._id, role:user.role},
+            process.env.JWT_TOKEN as string,
+            {expiresIn:'1h'}
+        )
+        res.json({token,role:user.role})
 
-// })
+    }
+    catch(error){
+        res.status(500).json({err:error,message:"Error Logging in"})
+    }
+
+})
 
 export default router;
